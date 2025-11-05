@@ -1,8 +1,11 @@
-import { Scene, Types, Physics } from "phaser";
+import { Scene, Types, Physics, GameObjects } from "phaser";
 
 export class Game extends Scene {
   private logo: Physics.Arcade.Image;
   private cursors: Types.Input.Keyboard.CursorKeys;
+  private text: GameObjects.Text;
+  private moveLeft = false;
+  private moveRight = false;
 
   constructor() {
     super("Game");
@@ -43,13 +46,13 @@ export class Game extends Scene {
     this.logo.setDepth(100);
 
     // ロゴの跳ね返りを設定します。
-    this.logo.setBounce(0.8);
+    this.logo.setBounce(0.2);
 
     // ロゴが画面外に出ないように設定します。
     this.logo.setCollideWorldBounds(true);
 
     // 画面中央下部にテキストを追加します。
-    const text = this.add
+    this.text = this.add
       .text(512, 490, "サッカーやろうぜ!\n俺がボールな!", {
         fontFamily: "Arial Black",
         fontSize: 38,
@@ -62,24 +65,69 @@ export class Game extends Scene {
       .setDepth(100);
 
     // テキストに物理エンジンを適用します。
-    this.physics.world.enable(text);
+    this.physics.world.enable(this.text);
 
     // テキストの物理特性を設定します。
-    const textBody = text.body as Physics.Arcade.Body;
-    textBody.setBounce(0.8);
+    const textBody = this.text.body as Physics.Arcade.Body;
+    textBody.setBounce(1.0);
     textBody.setCollideWorldBounds(true);
 
     // ロゴとテキストが衝突するように設定します。
-    this.physics.add.collider(this.logo, text);
+    this.physics.add.collider(this.logo, this.text);
 
     // キーボードのカーソルキー入力を設定します。
     this.cursors = this.input.keyboard!.createCursorKeys();
 
-    // 画面がクリックされたときのイベントを設定します。
-    this.input.on("pointerdown", () => {
-      this.logo.setVelocityY(-400);
-      textBody.setVelocityY(-400);
-    });
+    // モバイル用の操作UIを作成します。
+    this.createMobileControls();
+  }
+
+  /**
+   * モバイル用の操作UIを作成します。
+   */
+  private createMobileControls() {
+    const { width, height } = this.cameras.main;
+
+    // 操作ボタンのスタイル
+    const buttonStyle = {
+      radius: 64,
+      color: 0x000000,
+      alpha: 0.5,
+    };
+
+    // 左移動ボタン
+    const leftButton = this.add
+      .circle(
+        width * 0.15,
+        height * 0.8,
+        buttonStyle.radius,
+        buttonStyle.color,
+        buttonStyle.alpha
+      )
+      .setScrollFactor(0)
+      .setDepth(200)
+      .setInteractive();
+
+    leftButton.on("pointerdown", () => (this.moveLeft = true));
+    leftButton.on("pointerup", () => (this.moveLeft = false));
+    leftButton.on("pointerout", () => (this.moveLeft = false));
+
+    // 右移動ボタン
+    const rightButton = this.add
+      .circle(
+        width * 0.85,
+        height * 0.8,
+        buttonStyle.radius,
+        buttonStyle.color,
+        buttonStyle.alpha
+      )
+      .setScrollFactor(0)
+      .setDepth(200)
+      .setInteractive();
+
+    rightButton.on("pointerdown", () => (this.moveRight = true));
+    rightButton.on("pointerup", () => (this.moveRight = false));
+    rightButton.on("pointerout", () => (this.moveRight = false));
   }
 
   /**
@@ -87,20 +135,25 @@ export class Game extends Scene {
    * ここでは、キーボードの入力に応じてロゴの移動を制御しています。
    */
   update() {
-    // カーソルキーが設定されていない場合は何もしません。
-    if (!this.cursors) {
+    if (!this.cursors || !this.logo.body) {
       return;
     }
 
-    // 左右のカーソルキー入力に応じてロゴの水平速度を設定します。
-    if (this.cursors.left.isDown) {
-      // 左キーが押されている場合、ロゴを左に移動させます。
-      this.logo.setVelocityX(-200);
-    } else if (this.cursors.right.isDown) {
-      // 右キーが押されている場合、ロゴを右に移動させます。
-      this.logo.setVelocityX(200);
+    // const onGround = (this.logo.body as Physics.Arcade.Body).touching.down;
+    // const textBody = this.text.body as Physics.Arcade.Body;
+
+    // ジャンプ処理
+    if (this.cursors.up.isDown || (this.moveLeft && this.moveRight)) {
+      this.logo.setVelocityY(-400);
+      // textBody.setVelocityY(-400);
+    } else if (this.cursors.left.isDown || this.moveLeft) {
+      // 左移動
+      this.logo.setVelocityX(-300);
+    } else if (this.cursors.right.isDown || this.moveRight) {
+      // 右移動
+      this.logo.setVelocityX(300);
     } else {
-      // どちらのキーも押されていない場合、ロゴの水平速度を0にします。
+      // 水平方向の速度をリセット
       this.logo.setVelocityX(0);
     }
   }
